@@ -1,4 +1,8 @@
 import axios from "axios";
+import {
+  API_NOTIFICATION_MESSAGES,
+  SERVICE_URLS,
+} from "../constants/config.js";
 
 const API_URL = "http://localhost:4000";
 const axiosInstance = axios.create({
@@ -46,24 +50,58 @@ const processResponse = (response) => {
 const processError = (error) => {
   if (error.response) {
     // Server responded with a status other than 2xx
+    console.log("ERROR IN RESPONSE:", error.toJSON());
     return {
-      isSuccess: false,
-      message: `Error: ${error.response.statusText}`,
-      data: error.response.data,
+      isError: true,
+      msg: API_NOTIFICATION_MESSAGES.responseFailure,
+      code: error.response.status,
     };
   } else if (error.request) {
     // Request was made but no response received
+    console.log("ERROR IN REQUEST:", error.toJSON());
     return {
-      isSuccess: false,
-      message: "No response received from the server",
+      isError: true,
+      msg: API_NOTIFICATION_MESSAGES.requestFailure,
+      code: "",
     };
   } else {
     // Something else happened while setting up the request
+    console.log("ERROR IN NETWORK:", error.toJSON());
     return {
-      isSuccess: false,
-      message: `Error in setting up request: ${error.message}`,
+      isError: true,
+      msg: API_NOTIFICATION_MESSAGES.networkError,
+      code: "",
     };
   }
 };
 
-export default axiosInstance;
+const API = {};
+
+for (const [key, value] of Object.entries(SERVICE_URLS)) {
+  API[key] = (body, showUploadProgress, showDownloadProgress) => {
+    return axiosInstance({
+      method: value.method,
+      url: value.url,
+      data: body,
+      responseType: value.responseType,
+      onUploadProgress: function (progressEvent) {
+        if (showUploadProgress) {
+          let percentageCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          showUploadProgress(percentageCompleted);
+        }
+      },
+      onDownloadProgress: function (progressEvent) {
+        if (showDownloadProgress) {
+          let percentageCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          showDownloadProgress(percentageCompleted);
+        }
+      },
+    });
+  };
+}
+
+export { API };
