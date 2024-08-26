@@ -1,6 +1,8 @@
 import { Box, TextField, Button, styled, Typography } from "@mui/material";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { API } from "../../service/api";
+import { DataContext } from "../../context/DataProvider";
+import { useNavigate } from "react-router-dom";
 
 const Component = styled(Box)`
   width: 400px;
@@ -19,7 +21,6 @@ const Image = styled("img")({
 const Wrapper = styled(Box)`
   padding: 25px 35px;
   display: flex;
-  flex: 1;
   flex-direction: column;
   & > div,
   & > button,
@@ -34,6 +35,7 @@ const LoginButton = styled(Button)`
   color: #fff;
   height: 48px;
   border-radius: 4px;
+  transition: background 0.3s ease;
   &:hover {
     background: #ff8a3c;
   }
@@ -46,6 +48,7 @@ const SignupButton = styled(Button)`
   height: 48px;
   border-radius: 4px;
   box-shadow: 0 2px 4px 0 rgb(0 0 0 / 20%);
+  transition: background 0.3s ease;
   &:hover {
     background: #f0f0f0;
   }
@@ -74,28 +77,74 @@ const Login = () => {
     password: "",
   };
 
+  const loginInitialValues = {
+    username: "",
+    password: "",
+  };
+
   const [account, toggleAccount] = useState("login");
   const [signup, setSignup] = useState(signupInitialValues);
+  const [login, setLogin] = useState(loginInitialValues);
   const [error, setError] = useState("");
+  const { setAccount } = useContext(DataContext);
+  const navigate = useNavigate();
+
   const toggleSignup = () => {
-    account === "signup" ? toggleAccount("login") : toggleAccount("signup");
+    toggleAccount(account === "signup" ? "login" : "signup");
   };
 
   const onInputChange = (e) => {
     setSignup({ ...signup, [e.target.name]: e.target.value });
   };
 
+  const onValueChange = (e) => {
+    setLogin({ ...login, [e.target.name]: e.target.value });
+  };
+
   const signupUser = async () => {
-    let response = await API.userSignup(signup);
-    // Handle the response (e.g., display a message or redirect the user)
-    if (response.isSuccess) {
-      setSignup(signupInitialValues);
-      setError("");
-      toggleAccount("login");
-      console.log("Signup successful", response.data);
-    } else {
-      setError("something went wrong! please try again later");
-      console.log("Signup failed", response.msg);
+    try {
+      let response = await API.userSignup(signup);
+      if (response.isSuccess) {
+        setSignup(signupInitialValues);
+        setError("");
+        toggleAccount("login");
+        console.log("Signup successful", response.data);
+      } else {
+        setError("Something went wrong! Please try again later.");
+        console.log("Signup failed", response.msg);
+      }
+    } catch (error) {
+      setError("Signup failed! Please try again later.");
+      console.error("Signup error", error);
+    }
+  };
+
+  const loginUser = async () => {
+    try {
+      let response = await API.userLogin(login);
+      if (response.isSuccess) {
+        setError("");
+        sessionStorage.setItem(
+          "accessToken",
+          `Bearer ${response.data.accessToken}`
+        );
+        sessionStorage.setItem(
+          "refreshToken",
+          `Bearer ${response.data.refreshToken}`
+        );
+
+        setAccount({
+          username: response.data.username,
+          name: response.data.name,
+        });
+
+        navigate("/");
+      } else {
+        setError("Something went wrong! Please try again later.");
+      }
+    } catch (error) {
+      setError("Login failed! Please try again later.");
+      console.error("Login error", error);
     }
   };
 
@@ -109,7 +158,8 @@ const Login = () => {
               id="username"
               label="Enter Username"
               variant="standard"
-              onChange={onInputChange}
+              value={login.username}
+              onChange={onValueChange}
               name="username"
             />
             <TextField
@@ -117,11 +167,14 @@ const Login = () => {
               label="Enter Password"
               variant="standard"
               type="password"
-              onChange={onInputChange}
+              value={login.password}
+              onChange={onValueChange}
               name="password"
             />
             {error && <Error>{error}</Error>}
-            <LoginButton variant="contained">Login</LoginButton>
+            <LoginButton variant="contained" onClick={loginUser}>
+              Login
+            </LoginButton>
             <Text style={{ textAlign: "center" }}>OR</Text>
             <SignupButton variant="text" onClick={toggleSignup}>
               CREATE AN ACCOUNT
